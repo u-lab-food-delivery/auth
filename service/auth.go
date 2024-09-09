@@ -2,16 +2,71 @@ package service
 
 import (
 	"auth_service/genproto/auth"
+	"auth_service/models"
 	"auth_service/storage/postgres"
 	"context"
+	"log"
+
+	"github.com/google/uuid"
 )
 
 type AuthService struct {
-	user *postgres.UserManagementImpl
+	user        *postgres.UserManagementImpl
+	emailsender *EmailSender
 	auth.UnimplementedAuthServiceServer
 }
 
-func (auth.UnimplementedAuthServiceServer) Login(context.Context, *auth.LoginRequest) (*auth.LoginResponse, error)
-func (auth.UnimplementedAuthServiceServer) RefreshToken(context.Context, *auth.RefreshTokenRequest) (*auth.RefreshTokenResponse, error)
-func (auth.UnimplementedAuthServiceServer) Register(context.Context, *auth.RegisterRequest) (*auth.RegisterResponse, error)
-func (auth.UnimplementedAuthServiceServer) VerifyEmail(context.Context, *auth.VerifyEmailRequest) (*auth.VerifyEmailResponse, error)
+func (a *AuthService) CheckByEmail(ctx context.Context, req *auth.CheckByEmailRequest) (*auth.Void, error) {
+	return nil, nil
+}
+func (a *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error) {
+	return nil, nil
+}
+
+func (a *AuthService) RefreshToken(ctx context.Context, req *auth.RefreshTokenRequest) (*auth.RefreshTokenResponse, error) {
+	return nil, nil
+}
+
+func (a *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (*auth.RegisterResponse, error) {
+	newID := uuid.NewString()
+	user, err := a.user.CreateUser(ctx, &models.User{
+		UserId:         newID,
+		Email:          req.Email,
+		HashedPassword: req.Password,
+		IsVerified:     false,
+		Name:           "user",
+	})
+
+	if err != nil {
+		log.Println("failed to create user: ", err)
+		return nil, err
+	}
+
+	err = a.emailsender.SendVerificationEmail(req.Email, req.VerificationLink)
+	if err != nil {
+		return nil, err
+	}
+
+	return &auth.RegisterResponse{
+		UserId: newID,
+		Email:  user.Email,
+	}, nil
+}
+
+func (a *AuthService) VerifyEmail(ctx context.Context, req *auth.VerifyEmailRequest) (*auth.VerifyEmailResponse, error) {
+	email, err := a.emailsender.cache.GetEmailByLink(req.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	if email == "" {
+		return &auth.VerifyEmailResponse{Message: "The link expired"}, nil
+	}
+
+	err = a.user.VerifiyUser(ctx, email)
+	if err != nil {
+		return &auth.VerifyEmailResponse{Message: "Couldn't verified user. Unexpected error occured!"}, err
+	}
+
+	return &auth.VerifyEmailResponse{Message: "Verification successfull"}, nil
+}

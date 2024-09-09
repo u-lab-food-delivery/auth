@@ -3,6 +3,7 @@ CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     hashed_password TEXT NOT NULL,
+    is_verified BOOLEAN DEFAULT 'false',
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -24,5 +25,3 @@ CREATE TABLE password_resets (
 );
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_password_resets_token ON password_resets(reset_token);
-
-CREATE DATABASE auth_service_gmail;

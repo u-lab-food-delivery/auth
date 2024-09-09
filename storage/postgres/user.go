@@ -33,7 +33,7 @@ func (a *UserManagementImpl) CreateUser(ctx context.Context, req *models.User) (
 		return nil, err
 	}
 
-	err = a.InsertUser(ctx, req.Email, hashedPassword, req.Name)
+	err = a.InsertUser(ctx, req.Email, hashedPassword, req.Name, req.IsVerified)
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +121,40 @@ func (a *UserManagementImpl) GetByEmail(ctx context.Context, email string) (*mod
 	return user, nil
 }
 
+func (a *UserManagementImpl) VerifiyUser(ctx context.Context, email string) error {
+	sqlQuery, args, err := a.sqlBuilder.Update("users").
+		Set("is_verified", true).
+		Where(sq.Eq{"email": email}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("failed to build SQL query: %v", err)
+	}
+
+	_, err = a.db.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		log.Println("Failed to update user: ", err)
+		return err
+	}
+
+	return nil
+}
+
 func (a *UserManagementImpl) UpdateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	// Update database
+	eq := sq.Eq{}
+	if user.UserId == "" && user.Email != "" {
+		eq = sq.Eq{"email": user.Email}
+	} else {
+		eq = sq.Eq{"user_id": user.UserId}
+	}
+
 	sqlQuery, args, err := a.sqlBuilder.Update("users").
 		Set("email", user.Email).
 		Set("hashed_password", user.HashedPassword).
 		Set("name", user.Name).
+		Set("is_verified", user.IsVerified).
 		Set("updated_at", user.UpdatedAt).
-		Where(sq.Eq{"user_id": user.UserId}).
+		Where(eq).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build SQL query: %v", err)
@@ -193,10 +219,10 @@ func (a *UserManagementImpl) DeleteUser(ctx context.Context, userId string) erro
 	return nil
 }
 
-func (a *UserManagementImpl) InsertUser(ctx context.Context, email, hashedPassword, name string) error {
+func (a *UserManagementImpl) InsertUser(ctx context.Context, email, hashedPassword, name string, isVerified bool) error {
 	sqlQuery, args, err := a.sqlBuilder.Insert("users").
-		Columns("email", "hashed_password", "name", "created_at").
-		Values(email, hashedPassword, name, "NOW()").
+		Columns("email", "hashed_password", "name", "created_at", "is_verified").
+		Values(email, hashedPassword, name, "NOW()", isVerified).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("failed to build SQL query: %v", err)
@@ -231,6 +257,7 @@ func (a *UserManagementImpl) GetByID(ctx context.Context, userId string) (*model
 		"name",
 		"created_at",
 		"updated_at",
+		"is_verified",
 	).From("users").Where(
 		sq.Eq{"user_id": userId},
 	).ToSql()
@@ -247,6 +274,7 @@ func (a *UserManagementImpl) GetByID(ctx context.Context, userId string) (*model
 		&user.Name,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.IsVerified,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
