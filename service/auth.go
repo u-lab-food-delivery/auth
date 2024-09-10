@@ -16,10 +16,27 @@ type AuthService struct {
 	auth.UnimplementedAuthServiceServer
 }
 
+func NewAuthService(user *postgres.UserManagementImpl, emailsender *EmailSender) *AuthService {
+	return &AuthService{
+		user:        user,
+		emailsender: emailsender,
+	}
+}
+
 func (a *AuthService) CheckByEmail(ctx context.Context, req *auth.CheckByEmailRequest) (*auth.Void, error) {
+	user, err := a.user.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	if user != nil {
+		return &auth.Void{}, nil
+	}
+
 	return nil, nil
 }
 func (a *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error) {
+
 	return nil, nil
 }
 
