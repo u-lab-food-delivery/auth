@@ -5,6 +5,8 @@ go 1.22.3
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	google.golang.org/grpc v1.66.0

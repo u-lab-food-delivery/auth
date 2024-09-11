@@ -24,12 +24,13 @@ func main() {
 	rClient := pkgRedis.ConnectDB(&cnf.Redis)
 	authCache := cache.NewAuthCache(rClient)
 	emailCacher := cache.NewEmailCache(rClient)
+	tokenCacher := cache.NewTokenCache(rClient)
 
 	user := postgres.NewUserManagementSQL(db, authCache)
 
 	emailSenderService := service.NewEmailSender(cnf.EmailSender, emailCacher)
 
-	authService := service.NewAuthService(user, emailSenderService)
+	authService := service.NewAuthService(user, emailSenderService, cnf, tokenCacher)
 
 	if err := server.Run(authService, *cnf); err != nil {
 		log.Fatal(err)
